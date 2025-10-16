@@ -140,7 +140,7 @@ label { font-weight: 600; font-size: 0.9rem; }
     <input type="checkbox" id="addDescToggle" />
     <label for="addDescToggle">Add description</label>
   </div>
-  <textarea id="taskDesc" placeholder="Description..." style="display:none"></textarea>
+  <textarea id="taskDesc" placeholder="Description..." style="display:none" maxlength="275"></textarea>
   <label>Priority (1-10)</label>
   <div class="urgency-container" id="urgencyContainer"></div>
   <input type="hidden" id="taskUrgency" value="5" />
@@ -171,8 +171,10 @@ const hiddenInput = document.getElementById("taskUrgency");
 const sortOption = document.getElementById("sortOption");
 const sortOrderBtn = document.getElementById("sortOrderBtn");
 
-let tasks = [];
+let tasks = JSON.parse(localStorage.getItem("tasks") || "[]");
 let sortAscending = false;
+
+function saveTasks() { localStorage.setItem("tasks", JSON.stringify(tasks)); }
 
 function getUrgencyColor(value){
   const percent=(value-1)/9;
@@ -216,7 +218,7 @@ form.addEventListener("submit", e=>{
   const title=document.getElementById("taskTitle").value.trim();
   const dateValue=document.getElementById("taskDueDate").value;
   const time=addTimeToggle.checked?document.getElementById("taskDueTime").value:null;
-  const desc=addDescToggle.checked?descInput.value.trim():"";
+  const desc=addDescToggle.checked?descInput.value.trim().slice(0,275):"";
   const urgency=parseInt(hiddenInput.value);
   if(!title || isNaN(urgency)) return;
 
@@ -228,6 +230,7 @@ form.addEventListener("submit", e=>{
   }
 
   tasks.push({title,dueDate,urgency,desc});
+  saveTasks();
   renderTasks();
   form.reset();
   document.querySelectorAll(".urgency-circle")[4].click();
@@ -238,7 +241,6 @@ form.addEventListener("submit", e=>{
 function renderTasks(){
   taskList.innerHTML="";
   if(tasks.length===0){ taskList.innerHTML=`<p class="empty">No tasks yet. Add one above!</p>`; return; }
-
   const now = new Date();
 
   tasks.forEach((task,index)=>{
@@ -273,7 +275,7 @@ function renderTasks(){
     frontInfo.innerHTML=`
       <div class="priority-badge" style="background:${getUrgencyColor(task.urgency)}">${task.urgency}</div>
       <h3>${task.title}</h3>
-      <small class="due">${task.dueDate?`Due: ${task.dueDate.toLocaleString()}`:"No due date"}</small>
+      <small class="due">${task.dueDate?`Due: ${new Date(task.dueDate).toLocaleString()}`:"No due date"}</small>
       <small>Priority Level: ${task.urgency}/10</small>
       <small>${dueText}</small>
     `;
@@ -281,7 +283,7 @@ function renderTasks(){
     const doneBtn=document.createElement("button");
     doneBtn.className="delete";
     doneBtn.textContent="Done";
-    doneBtn.addEventListener("click", e=>{ e.stopPropagation(); tasks.splice(index,1); renderTasks(); });
+    doneBtn.addEventListener("click", e=>{ e.stopPropagation(); tasks.splice(index,1); saveTasks(); renderTasks(); });
 
     front.appendChild(frontInfo);
     front.appendChild(doneBtn);
@@ -303,19 +305,51 @@ function renderTasks(){
     const editBtn=document.createElement("button");
     editBtn.className="edit-desc-btn";
     editBtn.innerText="Edit";
-    editBtn.addEventListener("click", e=>{ e.stopPropagation(); const newDesc=prompt("Edit description:", task.desc || ""); if(newDesc!==null){task.desc=newDesc;renderTasks();} });
+    editBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      editBtn.style.display = "none";
+      const editArea = document.createElement("textarea");
+      editArea.value = task.desc || "";
+      editArea.maxLength = 275;
+      editArea.style.width = "90%";
+      editArea.style.minHeight = "60px";
+      editArea.style.margin = "0.5rem auto";
+      editArea.style.fontFamily = "inherit";
+      editArea.style.fontSize = "1rem";
+      editArea.style.borderRadius = "6px";
+      editArea.style.padding = "0.3rem";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "Save";
+      saveBtn.style.marginTop = "0.5rem";
+      saveBtn.className = "edit-desc-btn";
+
+      saveBtn.addEventListener("click", () => {
+        task.desc = editArea.value.trim().slice(0,275);
+        saveTasks();
+        renderTasks();
+      });
+
+      back.appendChild(editArea);
+      back.appendChild(saveBtn);
+    });
 
     back.appendChild(descSpan);
     back.appendChild(editBtn);
 
     inner.appendChild(front);
     inner.appendChild(back);
-    inner.addEventListener("click", e=>{ if(e.target.tagName.toLowerCase()==="button") return; inner.classList.toggle("flipped"); });
+    inner.addEventListener("click", e => {
+      if (e.target.tagName.toLowerCase() === "button" || e.target.tagName.toLowerCase() === "textarea") return;
+      inner.classList.toggle("flipped");
+    });
 
     container.appendChild(inner);
     taskList.appendChild(container);
   });
 }
+
+renderTasks();
 
 sortOption.addEventListener("change", ()=>{renderTasks();});
 sortOrderBtn.addEventListener("click", ()=>{
