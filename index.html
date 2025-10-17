@@ -42,11 +42,27 @@
             overflow: hidden;
         }
         form.minimized {
-            max-height: 2.8rem;
-            overflow: hidden;
-            padding: 0.5rem 1rem;
+            height: 40px; /* or whatever small height you want */
+            display: flex;
+            justify-content: center; /* horizontal center */
+            align-items: center;     /* vertical center */
             cursor: pointer;
+            overflow: hidden;
+            padding: 0;
         }
+        
+        form.minimized > *:not(#minimizedPlaceholder) {
+            display: none; /* hide everything else when minimized */
+        }
+        
+        #minimizedPlaceholder {
+            display: block;
+            font-weight: bold;
+            color: #007bff;
+            font-size: 1rem;
+        }
+        
+        
         form.minimized:hover {
             background: #eef4ff;
         }
@@ -143,11 +159,19 @@
             align-self: flex-end;
             font-size: 0.9rem;
         }
+        .task-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center; /* vertically centers the label and button */
+        }
+        
+        
+        
         .minimize-btn:hover { background: #5a6268; }
     </style>
 </head>
 <body>
-    <header>🧠 Focus Reminder</header>
+    <!--  <header>🧠 Focus Reminder</header>  -->
     <div id="authSection" style="margin-top: 2rem;">
         <h2>Login / Sign Up</h2>
         <input type="email" id="emailInput" placeholder="Email" required />
@@ -159,8 +183,13 @@
     
     <main>
         <form id="taskForm">
-            <button type="button" id="minimizeBtn" class="minimize-btn">–</button>
-            <label for="taskTitle">Task</label>
+            <div id="minimizedPlaceholder" style="display:none; text-align:center; font-weight:bold; color:#007bff;">New Task</div>
+            
+            <div class="task-form-header">
+                <label for="taskTitle">Task</label>
+                <button type="button" id="minimizeBtn" class="minimize-btn">–</button>
+            </div>
+            
             <input type="text" id="taskTitle" placeholder="Task name..." required />
             <label for="taskDueDate">Due Date (optional)</label>
             <input type="date" id="taskDueDate" />
@@ -174,9 +203,9 @@
                 <label for="addDescToggle">Add description</label>
             </div>
             <textarea id="taskDesc" placeholder="Description..." style="display:none" maxlength="275"></textarea>
-            <label>Priority (1-10)</label>
+            <label>Priority</label>
             <div class="urgency-container" id="urgencyContainer"></div>
-            <input type="hidden" id="taskUrgency" value="5" />
+            <input type="hidden" id="taskUrgency" />
             <button type="submit">Add Task</button>
         </form>
         
@@ -192,333 +221,406 @@
         <div class="task-list" id="taskList"></div>
     </main>
     
-    <!-- Firebase SDKs -->
-    <!-- Firebase SDKs -->
-<script type="module">
-  import { 
-    initializeApp 
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { 
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
-    signOut, onAuthStateChanged 
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-  import { 
-    getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc 
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyArb6pfC5kzKkKsbL5bym1aQNVohz-1Q9k",
-    authDomain: "reminder-25e05.firebaseapp.com",
-    projectId: "reminder-25e05",
-    storageBucket: "reminder-25e05.firebasestorage.app",
-    messagingSenderId: "23989997139",
-    appId: "1:23989997139:web:382235c98a4cadc5c5c0a6"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  // DOM elements
-  const signupBtn = document.getElementById("signupBtn");
-  const loginBtn = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const emailInput = document.getElementById("emailInput");
-  const passwordInput = document.getElementById("passwordInput");
-  const form = document.getElementById("taskForm");
-  const minimizeBtn = document.getElementById("minimizeBtn");
-  const taskList = document.getElementById("taskList");
-  const addTimeToggle = document.getElementById("addTimeToggle");
-  const timeInput = document.getElementById("taskDueTime");
-  const addDescToggle = document.getElementById("addDescToggle");
-  const descInput = document.getElementById("taskDesc");
-  const urgencyContainer = document.getElementById("urgencyContainer");
-  const hiddenInput = document.getElementById("taskUrgency");
-  const sortOption = document.getElementById("sortOption");
-  const sortOrderBtn = document.getElementById("sortOrderBtn");
-
-  let tasks = [];
-  let sortAscending = false;
-  let currentUser = null;
-
-  function getUrgencyColor(value){
-    const percent=(value-1)/9;
-    const red=Math.round(percent*255);
-    const green=Math.round(255-percent*255);
-    return `rgb(${red},${green},0)`;
-  }
-
-  // Firebase Auth
-  signupBtn.addEventListener("click", async () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert("Account created! You are now logged in.");
-    } catch (e) {
-      alert(e.message);
-    }
-  });
-
-  loginBtn.addEventListener("click", async () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      alert("Logged in!");
-    } catch (e) {
-      alert(e.message);
-    }
-  });
-
-  logoutBtn.addEventListener("click", async () => {
-    await signOut(auth);
-    alert("Logged out!");
-  });
-
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      currentUser = user;
-      logoutBtn.style.display = "inline-block";
-      loadUserTasks(user.uid);
-    } else {
-      currentUser = null;
-      logoutBtn.style.display = "none";
-      tasks = [];
-      taskList.innerHTML = `<p class="empty">Please log in to see your tasks.</p>`;
-    }
-  });
-
-  // --- Firestore functions ---
-  async function saveTaskToFirestore(userId, task) {
-    try {
-      await addDoc(collection(db, "users", userId, "tasks"), task);
-    } catch (e) {
-      console.error("Error saving task:", e);
-    }
-  }
-
-  async function loadUserTasks(userId) {
-    try {
-      const q = query(collection(db, "users", userId, "tasks"));
-      const querySnapshot = await getDocs(q);
-      tasks = [];
-      querySnapshot.forEach((docSnap) => {
-        tasks.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      renderTasks();
-    } catch (e) {
-      console.error("Error loading tasks:", e);
-    }
-  }
-
-  async function deleteTaskFromFirestore(userId, taskId) {
-    try {
-      await deleteDoc(doc(db, "users", userId, "tasks", taskId));
-    } catch (e) {
-      console.error("Error deleting task:", e);
-    }
-  }
-
-  async function updateTaskDesc(userId, taskId, newDesc) {
-    try {
-      await updateDoc(doc(db, "users", userId, "tasks", taskId), { desc: newDesc });
-    } catch (e) {
-      console.error("Error updating description:", e);
-    }
-  }
-
-  // --- UI + Logic ---
-
-  // Minimize form
-  minimizeBtn.addEventListener("click", e => {
-    e.stopPropagation();
-    form.classList.toggle("minimized");
-    minimizeBtn.textContent = form.classList.contains("minimized") ? "+" : "–";
-  });
-  form.addEventListener("click", e => {
-    if (form.classList.contains("minimized")) {
-      form.classList.remove("minimized");
-      minimizeBtn.textContent = "–";
-    }
-  });
-
-  // Urgency circles
-  for(let i=1;i<=10;i++){
-    const circle=document.createElement("div");
-    circle.className="urgency-circle";
-    circle.textContent=i;
-    circle.dataset.value=i;
-    urgencyContainer.appendChild(circle);
-  }
-  urgencyContainer.addEventListener("click", e=>{
-    if(!e.target.classList.contains("urgency-circle")) return;
-    const value=parseInt(e.target.dataset.value);
-    hiddenInput.value=value;
-    document.querySelectorAll(".urgency-circle").forEach(c=>{
-      const cVal=parseInt(c.dataset.value);
-      if(cVal===value){
-        c.style.background=getUrgencyColor(value);
-        c.classList.add("selected");
-        c.style.color="white";
-      } else {
-        c.style.background="";
-        c.classList.remove("selected");
-        c.style.color="";
-      }
-    });
-  });
-  document.querySelectorAll(".urgency-circle")[4].click();
-
-  addTimeToggle.addEventListener("change", ()=>{timeInput.style.display=addTimeToggle.checked?"block":"none";});
-  addDescToggle.addEventListener("change", ()=>{descInput.style.display=addDescToggle.checked?"block":"none";});
-
-  form.addEventListener("submit", async e => {
-    e.preventDefault();
-    if (!currentUser) return alert("Please log in first.");
-
-    const title=document.getElementById("taskTitle").value.trim();
-    const dateValue=document.getElementById("taskDueDate").value;
-    const time=addTimeToggle.checked?document.getElementById("taskDueTime").value:null;
-    const desc=addDescToggle.checked?descInput.value.trim():"";
-    const urgency=parseInt(hiddenInput.value);
-    if(!title || isNaN(urgency)) return;
-
-    let dueDate=null;
-    if(dateValue){
-      const [year,month,day]=dateValue.split("-").map(Number);
-      dueDate=new Date(year,month-1,day);
-      if(time){ const [hours,minutes]=time.split(":").map(Number); dueDate.setHours(hours,minutes);}
-    }
-
-    const task = { title, dueDate: dueDate ? dueDate.toISOString() : null, urgency, desc };
-    await saveTaskToFirestore(currentUser.uid, task);
-    await loadUserTasks(currentUser.uid); // refresh
-    form.reset();
-    document.querySelectorAll(".urgency-circle")[4].click();
-    timeInput.style.display="none";
-    descInput.style.display="none";
-  });
-
-  function renderTasks(){
-    taskList.innerHTML="";
-    if(tasks.length===0){ taskList.innerHTML=`<p class="empty">No tasks yet. Add one above!</p>`; return; }
-
-    const now = new Date();
-
-    tasks.sort((a,b)=>{
-      if(sortOption.value==="urgency"){
-        return sortAscending?a.urgency-b.urgency:b.urgency-a.urgency;
-      } else {
-        const aDate=a.dueDate?new Date(a.dueDate):null;
-        const bDate=b.dueDate?new Date(b.dueDate):null;
-        if(!aDate && !bDate) return 0;
-        if(!aDate) return 1;
-        if(!bDate) return -1;
-        return sortAscending?aDate-bDate:bDate-aDate;
-      }
-    });
-
-    tasks.forEach((task)=>{
-      const dueDate=task.dueDate?new Date(task.dueDate):null;
-      let dueText="No due date";
-      if(dueDate){
-        const diff=dueDate-now;
-        const hoursLeft=Math.max(0,Math.floor(diff/(1000*60*60)));
-        const daysLeft=Math.floor(hoursLeft/24);
-        if(daysLeft>0) dueText=`${daysLeft} day(s) left`;
-        else if(hoursLeft>0) dueText=`${hoursLeft} hour(s) left`;
-        else dueText="Due soon!";
-      }
-
-      const container=document.createElement("div");
-      container.className="task";
-      const inner=document.createElement("div");
-      inner.className="task-inner";
-      if(task.urgency>=7) inner.classList.add("glow");
-
-      // Front
-      const front=document.createElement("div");
-      front.className="task-front";
-      front.style.border=`${2+(task.urgency-1)*0.7}px solid ${getUrgencyColor(task.urgency)}`;
-      const frontInfo=document.createElement("div");
-      frontInfo.innerHTML=`
-        <div class="priority-badge" style="background:${getUrgencyColor(task.urgency)}">${task.urgency}</div>
-        <h3>${task.title}</h3>
-        <small class="due">${dueDate?`Due: ${dueDate.toLocaleString()}`:"No due date"}</small>
-        <small>Priority Level: ${task.urgency}/10</small>
-        <small>${dueText}</small>
-      `;
-
-      const doneBtn=document.createElement("button");
-      doneBtn.className="delete";
-      doneBtn.textContent="Done";
-      doneBtn.addEventListener("click", async e=>{
-        e.stopPropagation();
-        await deleteTaskFromFirestore(currentUser.uid, task.id);
-        await loadUserTasks(currentUser.uid);
-      });
-
-      front.appendChild(frontInfo);
-      front.appendChild(doneBtn);
-
-      // Back
-      const back=document.createElement("div");
-      back.className="task-back";
-      back.style.border=`${2+(task.urgency-1)*0.7}px solid ${getUrgencyColor(task.urgency)}`;
-      if(task.urgency>=7) back.classList.add("glow");
-
-      const descSpan=document.createElement("div");
-      descSpan.style.flex="1";
-      descSpan.style.display="flex";
-      descSpan.style.justifyContent="center";
-      descSpan.style.alignItems="center";
-      descSpan.innerText=task.desc || "(No description)";
-
-      const editBtn=document.createElement("button");
-      editBtn.className="edit-desc-btn";
-      editBtn.innerText="Edit";
-      editBtn.addEventListener("click", e=>{
-        e.stopPropagation();
-        editBtn.style.display="none";
-        const editArea=document.createElement("textarea");
-        editArea.value=task.desc||"";
-        editArea.style.width="90%";
-        editArea.style.minHeight="60px";
-        const saveBtn=document.createElement("button");
-        saveBtn.textContent="Save";
-        saveBtn.className="edit-desc-btn";
-        saveBtn.addEventListener("click", async ()=>{
-          const newDesc = editArea.value.trim();
-          await updateTaskDesc(currentUser.uid, task.id, newDesc);
-          await loadUserTasks(currentUser.uid);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyArb6pfC5kzKkKsbL5bym1aQNVohz-1Q9k",
+            authDomain: "reminder-25e05.firebaseapp.com",
+            projectId: "reminder-25e05",
+            storageBucket: "reminder-25e05.firebasestorage.app",
+            messagingSenderId: "23989997139",
+            appId: "1:23989997139:web:382235c98a4cadc5c5c0a6"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // DOM elements
+        const signupBtn = document.getElementById("signupBtn");
+        const loginBtn = document.getElementById("loginBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+        const emailInput = document.getElementById("emailInput");
+        const passwordInput = document.getElementById("passwordInput");
+        const form = document.getElementById("taskForm");
+        const minimizeBtn = document.getElementById("minimizeBtn");
+        const taskList = document.getElementById("taskList");
+        const addTimeToggle = document.getElementById("addTimeToggle");
+        const timeInput = document.getElementById("taskDueTime");
+        const addDescToggle = document.getElementById("addDescToggle");
+        const descInput = document.getElementById("taskDesc");
+        const urgencyContainer = document.getElementById("urgencyContainer");
+        const hiddenInput = document.getElementById("taskUrgency");
+        const sortOption = document.getElementById("sortOption");
+        const sortOrderBtn = document.getElementById("sortOrderBtn");
+        
+        let tasks = [];
+        let sortAscending = false;
+        let currentUser = null;
+        
+        // Load saved form state
+        const savedMinimized = localStorage.getItem("taskFormMinimized");
+        if(savedMinimized === "true") {
+            form.classList.add("minimized");
+            minimizeBtn.textContent = "+";
+            minimizedPlaceholder.style.display = "block"; // <-- add this line
+        } else {
+            form.classList.remove("minimized");
+            minimizeBtn.textContent = "–";
+            minimizedPlaceholder.style.display = "none";  // <-- ensure hidden
+        }
+        
+        
+        
+        // Firebase Auth
+        signupBtn.addEventListener("click", async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            try { await createUserWithEmailAndPassword(auth,email,password); alert("Account created!"); } 
+            catch(e){ alert(e.message); }
         });
-        back.appendChild(editArea);
-        back.appendChild(saveBtn);
-      });
-
-      back.appendChild(descSpan);
-      back.appendChild(editBtn);
-
-      inner.appendChild(front);
-      inner.appendChild(back);
-      inner.addEventListener("click", e=>{
-        if(["button","textarea"].includes(e.target.tagName.toLowerCase())) return;
-        inner.classList.toggle("flipped");
-      });
-
-      container.appendChild(inner);
-      taskList.appendChild(container);
-    });
-  }
-
-  sortOption.addEventListener("change", renderTasks);
-  sortOrderBtn.addEventListener("click", ()=>{
-    sortAscending=!sortAscending;
-    sortOrderBtn.textContent=sortAscending?"↑":"↓";
-    renderTasks();
-  });
-</script>
-
+        
+        loginBtn.addEventListener("click", async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            try { await signInWithEmailAndPassword(auth,email,password); alert("Logged in!"); } 
+            catch(e){ alert(e.message); }
+        });
+        
+        logoutBtn.addEventListener("click", async () => {
+            await signOut(auth);
+            alert("Logged out!");
+        });
+        
+        onAuthStateChanged(auth, (user) => {
+            const authSection = document.getElementById("authSection");
+            if (user) {
+                currentUser = user;
+                logoutBtn.style.display = "inline-block";
+                // Hide login/signup inputs
+                authSection.innerHTML = `<button id="logoutBtn" class="minimize-btn" style="position:absolute; top:10px; right:10px;">Log Out</button>`;
+                document.getElementById("logoutBtn").addEventListener("click", async () => {
+                    await signOut(auth);
+                    alert("Logged out!");
+                    location.reload(); // refresh to show login again
+                });
+                loadUserTasks(user.uid);
+            } else {
+                currentUser = null;
+                logoutBtn.style.display = "none";
+                tasks = [];
+                taskList.innerHTML = `<p class="empty">Please log in to see your tasks.</p>`;
+                // Restore login form
+                authSection.innerHTML = `
+            <h2>Login / Sign Up</h2>
+            <input type="email" id="emailInput" placeholder="Email" required />
+            <input type="password" id="passwordInput" placeholder="Password" required />
+            <button id="signupBtn">Sign Up</button>
+            <button id="loginBtn">Log In</button>
+            <button id="logoutBtn" style="display:none;">Log Out</button>
+        `;
+                // Re-attach login/signup event listeners
+                document.getElementById("signupBtn").addEventListener("click", async () => {
+                    const email = document.getElementById("emailInput").value;
+                    const password = document.getElementById("passwordInput").value;
+                    try { await createUserWithEmailAndPassword(auth,email,password); alert("Account created!"); } 
+                    catch(e){ alert(e.message); }
+                });
+                document.getElementById("loginBtn").addEventListener("click", async () => {
+                    const email = document.getElementById("emailInput").value;
+                    const password = document.getElementById("passwordInput").value;
+                    try { await signInWithEmailAndPassword(auth,email,password); alert("Logged in!"); } 
+                    catch(e){ alert(e.message); }
+                });
+            }
+        });
+        
+        
+        // Firestore functions
+        async function saveTaskToFirestore(userId, task){
+            try{ await addDoc(collection(db,"users",userId,"tasks"),task); }
+            catch(e){ console.error("Error saving task:", e); }
+        }
+        
+        async function loadUserTasks(userId){
+            try{
+                const q=query(collection(db,"users",userId,"tasks"));
+                const querySnapshot=await getDocs(q);
+                tasks=[];
+                querySnapshot.forEach(docSnap=>{ tasks.push({id:docSnap.id,...docSnap.data()}); });
+                renderTasks();
+            } catch(e){ console.error("Error loading tasks:",e); }
+        }
+        
+        async function deleteTaskFromFirestore(userId, taskId){
+            try{ await deleteDoc(doc(db,"users",userId,"tasks",taskId)); } 
+            catch(e){ console.error("Error deleting task:",e); }
+        }
+        
+        async function updateTaskDesc(userId, taskId, newDesc){
+            try{ await updateDoc(doc(db,"users",userId,"tasks",taskId),{desc:newDesc}); } 
+            catch(e){ console.error("Error updating description:",e); }
+        }
+        
+        // Minimize form
+        minimizeBtn.addEventListener("click", e => { 
+            e.stopPropagation();
+            form.classList.toggle("minimized");
+            const minimized = form.classList.contains("minimized");
+            minimizeBtn.textContent = minimized ? "+" : "–";
+            minimizedPlaceholder.style.display = minimized ? "block" : "none";
+            // save state
+            localStorage.setItem("taskFormMinimized", form.classList.contains("minimized") ? "true" : "false");
+        });
+        form.addEventListener("click", e => {
+            if(form.classList.contains("minimized")){
+                form.classList.remove("minimized");
+                minimizeBtn.textContent = "–";
+                minimizedPlaceholder.style.display = "none";
+            }
+        });
+        
+        
+        form.addEventListener("click", e=>{ if(form.classList.contains("minimized")){ form.classList.remove("minimized"); minimizeBtn.textContent="–"; } });
+        
+        // Priorities
+        const priorities=["!","!!","!!!"];
+        
+        urgencyContainer.innerHTML="";
+        priorities.forEach(p=>{
+            const circle=document.createElement("div");
+            circle.className="urgency-circle";
+            circle.textContent=p;
+            circle.dataset.value=p;
+            urgencyContainer.appendChild(circle);
+        });
+        urgencyContainer.addEventListener("click", e => {
+            if (!e.target.classList.contains("urgency-circle")) return;
+            
+            const clickedValue = e.target.dataset.value;
+            
+            // Map priorities to colors
+            const priorityColors = {
+                "!": "#ff9999",    // light red
+                "!!": "#ff4d4d",   // medium red
+                "!!!": "#990000"   // dark red
+            };
+            const defaultBorderColor = "#007bff";
+            
+            // If the clicked priority is already selected, deselect it
+            if (hiddenInput.value === clickedValue) {
+                hiddenInput.value = ""; // clear priority
+                document.querySelectorAll(".urgency-circle").forEach(c => {
+                    c.style.background = "";
+                    c.style.color = "";
+                    c.classList.remove("selected");
+                });
+            } else {
+                // Otherwise, select it
+                hiddenInput.value = clickedValue;
+                document.querySelectorAll(".urgency-circle").forEach(c => {
+                    if (c.dataset.value === clickedValue) {
+                        c.style.background = priorityColors[clickedValue]; 
+                        c.style.color = "white";
+                        c.classList.add("selected");
+                    } else {
+                        c.style.background = "";
+                        c.style.color = "";
+                        c.classList.remove("selected");
+                    }
+                });
+            }
+        });
+        
+        
+        
+        // Toggles
+        addTimeToggle.addEventListener("change", ()=>{timeInput.style.display=addTimeToggle.checked?"block":"none";});
+        addDescToggle.addEventListener("change", ()=>{descInput.style.display=addDescToggle.checked?"block":"none";});
+        
+        // Form submission
+        form.addEventListener("submit", async e=>{
+            e.preventDefault();
+            if(!currentUser) return alert("Please log in first.");
+            
+            const title=document.getElementById("taskTitle").value.trim();
+            const dateValue=document.getElementById("taskDueDate").value;
+            const time=addTimeToggle.checked?document.getElementById("taskDueTime").value:null;
+            const desc=addDescToggle.checked?descInput.value.trim():"";
+            const urgency=hiddenInput.value || null; // optional
+            if(!title) return;
+            
+            let dueDate=null;
+            if(dateValue){
+                const [year,month,day]=dateValue.split("-").map(Number);
+                dueDate=new Date(year,month-1,day);
+                if(time){ const [hours,minutes]=time.split(":").map(Number); dueDate.setHours(hours,minutes);}
+            }
+            
+            const task={ title, dueDate: dueDate ? dueDate.toISOString() : null, urgency, desc };
+            await saveTaskToFirestore(currentUser.uid, task);
+            await loadUserTasks(currentUser.uid); 
+            form.reset();
+            hiddenInput.value=""; // reset
+            timeInput.style.display="none";
+            descInput.style.display="none";
+        });
+        
+        // Render tasks
+        function renderTasks(){
+            taskList.innerHTML="";
+            if(tasks.length===0){ taskList.innerHTML=`<p class="empty">No tasks yet. Add one above!</p>`; return; }
+            const now = new Date();
+            
+            
+            const priorityMap = { "!": 1, "!!": 2, "!!!": 3 };
+            
+            tasks.sort((a, b) => {
+                if (sortOption.value === "urgency") {
+                    const priorityOrder = { "!": 1, "!!": 2, "!!!": 3 }; 
+                    const aPriority = a.urgency ? priorityOrder[a.urgency] : 0;
+                    const bPriority = b.urgency ? priorityOrder[b.urgency] : 0;
+                    return sortAscending ? aPriority - bPriority : bPriority - aPriority;
+                } else if (sortOption.value === "dueDate") {
+                    const aDate = a.dueDate ? new Date(a.dueDate) : new Date(8640000000000000); // max future
+                    const bDate = b.dueDate ? new Date(b.dueDate) : new Date(8640000000000000);
+                    return sortAscending ? bDate - aDate : aDate - bDate;
+                }
+            });
+            
+            
+            
+            tasks.forEach(task=>{
+                const dueDate=task.dueDate?new Date(task.dueDate):null;
+                let dueText="No due date";
+                if(dueDate){
+                    const diff=dueDate-now;
+                    const hoursLeft=Math.max(0,Math.floor(diff/(1000*60*60)));
+                    const daysLeft=Math.floor(hoursLeft/24);
+                    if(daysLeft>0) dueText=`${daysLeft} day(s) left`;
+                    else if(hoursLeft>0) dueText=`${hoursLeft} hour(s) left`;
+                    else dueText="LATE!"
+                    ;
+                }
+                
+                const container=document.createElement("div");
+                container.className="task";
+                const inner=document.createElement("div");
+                inner.className="task-inner";
+                
+                // Glow if priority selected
+                if(task.urgency) inner.classList.add("glow");
+                
+                // Front
+                // Map priorities to colors
+                const priorityColors = {
+                    "!": "#ff9999",
+                    "!!": "#ff4d4d",
+                    "!!!": "#990000"
+                };
+                const defaultBorderColor = "#007bff";
+                
+                const front=document.createElement("div");
+                front.className="task-front";
+                
+                // Determine border color
+                let borderColor = task.urgency ? priorityColors[task.urgency] : defaultBorderColor;
+                front.style.border = `4px solid ${borderColor}`;
+                
+                const frontInfo=document.createElement("div");
+                
+                // Add priority badge if selected
+                if(task.urgency){
+                    const badge=document.createElement("div");
+                    badge.className="priority-badge";
+                    badge.style.background = priorityColors[task.urgency];
+                    badge.textContent = task.urgency;
+                    frontInfo.appendChild(badge);
+                }
+                
+                // Add the rest of the info without overwriting badge
+                const infoContent = document.createElement("div");
+                infoContent.innerHTML = `
+    <h3>${task.title}</h3>
+    <small class="due">${dueDate?`Due: ${dueDate.toLocaleString()}`:"No due date"}</small>
+    <small>${dueText}</small>
+`;
+                frontInfo.appendChild(infoContent);
+                
+                
+                const doneBtn=document.createElement("button");
+                doneBtn.className="delete";
+                doneBtn.textContent="Done";
+                doneBtn.addEventListener("click", async e=>{
+                    e.stopPropagation();
+                    await deleteTaskFromFirestore(currentUser.uid, task.id);
+                    await loadUserTasks(currentUser.uid);
+                });
+                
+                front.appendChild(frontInfo);
+                front.appendChild(doneBtn);
+                
+                // Back
+                const back=document.createElement("div");
+                back.className="task-back";
+                let backBorderColor = task.urgency ? priorityColors[task.urgency] : defaultBorderColor;
+                back.style.border = `4px solid ${backBorderColor}`;
+                if(task.urgency) back.classList.add("glow");
+                
+                
+                const descSpan=document.createElement("div");
+                descSpan.style.flex="1";
+                descSpan.style.display="flex";
+                descSpan.style.justifyContent="center";
+                descSpan.style.alignItems="center";
+                descSpan.innerText=task.desc||"(No description)";
+                
+                const editBtn=document.createElement("button");
+                editBtn.className="edit-desc-btn";
+                editBtn.innerText="Edit";
+                editBtn.addEventListener("click", e=>{
+                    e.stopPropagation();
+                    editBtn.style.display="none";
+                    const editArea=document.createElement("textarea");
+                    editArea.value=task.desc||"";
+                    editArea.style.width="90%";
+                    editArea.style.minHeight="60px";
+                    const saveBtn=document.createElement("button");
+                    saveBtn.textContent="Save";
+                    saveBtn.className="edit-desc-btn";
+                    saveBtn.addEventListener("click", async ()=>{
+                        const newDesc=editArea.value.trim();
+                        await updateTaskDesc(currentUser.uid, task.id, newDesc);
+                        await loadUserTasks(currentUser.uid);
+                    });
+                    back.appendChild(editArea);
+                    back.appendChild(saveBtn);
+                });
+                
+                back.appendChild(descSpan);
+                back.appendChild(editBtn);
+                
+                inner.appendChild(front);
+                inner.appendChild(back);
+                inner.addEventListener("click", e=>{
+                    if(["button","textarea"].includes(e.target.tagName.toLowerCase())) return;
+                    inner.classList.toggle("flipped");
+                });
+                
+                container.appendChild(inner);
+                taskList.appendChild(container);
+            });
+        }
+        
+        sortOption.addEventListener("change", renderTasks);
+        sortOrderBtn.addEventListener("click", ()=>{
+            sortAscending=!sortAscending;
+            sortOrderBtn.textContent=sortAscending?"↑":"↓";
+            renderTasks();
+        });
+    </script>
 </body>
 </html>
