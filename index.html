@@ -178,8 +178,10 @@
         <input type="password" id="passwordInput" placeholder="Password" required />
         <button id="signupBtn">Sign Up</button>
         <button id="loginBtn">Log In</button>
+        <button id="guestBtn">Continue as Guest</button>
         <button id="logoutBtn" style="display:none;">Log Out</button>
     </div>
+    
     
     <main>
         <form id="taskForm">
@@ -223,7 +225,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         
         const firebaseConfig = {
@@ -243,6 +245,23 @@
         const signupBtn = document.getElementById("signupBtn");
         const loginBtn = document.getElementById("loginBtn");
         const logoutBtn = document.getElementById("logoutBtn");
+        // Guest login button
+        const guestBtn = document.createElement("button");
+        guestBtn.textContent = "Continue as Guest";
+        guestBtn.id = "guestBtn";
+        guestBtn.style.marginTop = "0.5rem";
+        guestBtn.addEventListener("click", async () => {
+            try {
+                const userCred = await signInAnonymously(auth);
+                currentUser = userCred.user;
+                alert("Logged in as guest!");
+                loadUserTasks(currentUser.uid);
+            } catch (e) {
+                alert("Could not log in as guest: " + e.message);
+            }
+        });
+        document.getElementById("authSection").appendChild(guestBtn);
+        
         const emailInput = document.getElementById("emailInput");
         const passwordInput = document.getElementById("passwordInput");
         const form = document.getElementById("taskForm");
@@ -299,44 +318,65 @@
             const authSection = document.getElementById("authSection");
             if (user) {
                 currentUser = user;
-                logoutBtn.style.display = "inline-block";
-                // Hide login/signup inputs
-                authSection.innerHTML = `<button id="logoutBtn" class="minimize-btn" style="position:absolute; top:10px; right:10px;">Log Out</button>`;
+                
+                // Show only the logout button in the top right
+                authSection.innerHTML = `
+            <button id="logoutBtn" class="minimize-btn" style="position:absolute; top:10px; right:10px;">Log Out</button>
+        `;
+                
                 document.getElementById("logoutBtn").addEventListener("click", async () => {
                     await signOut(auth);
                     alert("Logged out!");
-                    location.reload(); // refresh to show login again
+                    location.reload();
                 });
+                
                 loadUserTasks(user.uid);
+                
             } else {
                 currentUser = null;
-                logoutBtn.style.display = "none";
                 tasks = [];
                 taskList.innerHTML = `<p class="empty">Please log in to see your tasks.</p>`;
-                // Restore login form
+                
+                // Restore all login options including guest
                 authSection.innerHTML = `
             <h2>Login / Sign Up</h2>
             <input type="email" id="emailInput" placeholder="Email" required />
             <input type="password" id="passwordInput" placeholder="Password" required />
             <button id="signupBtn">Sign Up</button>
             <button id="loginBtn">Log In</button>
+            <button id="guestBtn">Continue as Guest</button>
             <button id="logoutBtn" style="display:none;">Log Out</button>
         `;
-                // Re-attach login/signup event listeners
+                
+                // Re-attach event listeners
                 document.getElementById("signupBtn").addEventListener("click", async () => {
                     const email = document.getElementById("emailInput").value;
                     const password = document.getElementById("passwordInput").value;
                     try { await createUserWithEmailAndPassword(auth,email,password); alert("Account created!"); } 
                     catch(e){ alert(e.message); }
                 });
+                
                 document.getElementById("loginBtn").addEventListener("click", async () => {
                     const email = document.getElementById("emailInput").value;
                     const password = document.getElementById("passwordInput").value;
                     try { await signInWithEmailAndPassword(auth,email,password); alert("Logged in!"); } 
                     catch(e){ alert(e.message); }
                 });
+                
+                document.getElementById("guestBtn").addEventListener("click", async () => {
+                    try {
+                        const userCredential = await signInAnonymously(auth);
+                        currentUser = userCredential.user;
+                        alert("Logged in as Guest!");
+                        loadUserTasks(currentUser.uid);
+                    } catch (e) {
+                        console.error("Anonymous login failed:", e);
+                        alert("Could not log in as guest.");
+                    }
+                });
             }
         });
+        
         
         
         // Firestore functions
@@ -621,6 +661,19 @@
             sortOrderBtn.textContent=sortAscending?"↑":"↓";
             renderTasks();
         });
+        guestBtn.addEventListener("click", async () => {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                currentUser = userCredential.user;
+                alert("Logged in as Guest!");
+                // load tasks for this anonymous user
+                loadUserTasks(currentUser.uid);
+            } catch (e) {
+                console.error("Anonymous login failed:", e);
+                alert("Could not log in as guest.");
+            }
+        });
+        
     </script>
 </body>
 </html>
