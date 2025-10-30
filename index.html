@@ -507,6 +507,11 @@
             hiddenInput.value=""; // reset
             timeInput.style.display="none";
             descInput.style.display="none";
+            document.querySelectorAll(".urgency-circle").forEach(c => {
+                c.style.background = "";
+                c.style.color="";
+                c.classList.remove("selected");
+            })
         });
         
         // Render tasks
@@ -571,7 +576,7 @@
                 front.style.border = `4px solid ${borderColor}`;
                 
                 const frontInfo=document.createElement("div");
-                
+        
                 // Add priority badge if selected
                 if(task.urgency){
                     const badge=document.createElement("div");
@@ -580,6 +585,7 @@
                     badge.textContent = task.urgency;
                     frontInfo.appendChild(badge);
                 }
+                
                 
                 // Add the rest of the info without overwriting badge
                 const infoContent = document.createElement("div");
